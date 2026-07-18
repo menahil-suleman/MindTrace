@@ -10,6 +10,9 @@ jobs:
   # ── Backend ────────────────────────────────────────────────────────────────
   backend:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
     steps:
       - uses: actions/checkout@v4
 
@@ -18,11 +21,9 @@ jobs:
           python-version: "3.11"
 
       - name: Install backend dependencies
-        working-directory: ./backend
         run: pip install -r requirements.txt
 
       - name: Run backend tests
-        working-directory: ./backend
         env:
           DATABASE_URL: sqlite+aiosqlite:///./ci_test.db
           JWT_SECRET_KEY: ci-test-secret-key-not-for-prod
@@ -31,27 +32,24 @@ jobs:
   # ── Flutter ────────────────────────────────────────────────────────────────
   flutter:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
     steps:
       - uses: actions/checkout@v4
 
-      # Use latest stable Flutter — no hardcoded version so CI stays current
       - uses: subosito/flutter-action@v2
         with:
           channel: "stable"
 
       - name: Install Flutter dependencies
-        working-directory: ./frontend        # was ./app — Flutter project is in frontend/
         run: flutter pub get
 
       - name: Analyze
-        working-directory: ./frontend
         run: flutter analyze
 
       - name: Run tests
-        working-directory: ./frontend
         run: flutter test
 
-      # Web build — no Android SDK needed on ubuntu-latest runners
       - name: Build web (debug)
-        working-directory: ./frontend
         run: flutter build web --debug
