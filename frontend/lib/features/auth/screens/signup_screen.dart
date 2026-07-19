@@ -157,7 +157,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   border: Border.all(color: const Color(0xFFDCE6DE), width: 1),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF2D4B37).withOpacity(0.08),
+                      color: const Color(0xFF2D4B37).withValues(alpha: 0.08),
                       blurRadius: 30,
                       offset: const Offset(0, 8),
                     ),
@@ -435,7 +435,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       fontWeight: FontWeight.w400,
                       color: hasDate
                           ? MindColors.onSurface
-                          : MindColors.onSurfaceVariant.withOpacity(0.5),
+                          : MindColors.onSurfaceVariant.withValues(alpha: 0.5),
                     ),
                   ),
                 ),
@@ -468,6 +468,7 @@ class _SignupScreenState extends State<SignupScreen> {
         ),
         const SizedBox(height: 6),
         DropdownButtonFormField<String>(
+          // ignore: deprecated_member_use
           value: _selectedGender,
           hint: const Text(
             'Select gender identity',
@@ -558,7 +559,7 @@ class _SignupScreenState extends State<SignupScreen> {
           backgroundColor: MindColors.primaryContainer,
           foregroundColor: Colors.white,
           disabledBackgroundColor:
-              MindColors.primaryContainer.withOpacity(0.6),
+              MindColors.primaryContainer.withValues(alpha: 0.6),
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(999)),
           elevation: 0,
