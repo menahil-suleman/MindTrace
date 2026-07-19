@@ -23,6 +23,7 @@ async def test_signup_success(client: AsyncClient, adult_signup_payload: dict):
 async def test_signup_rejects_under_18(client: AsyncClient):
     payload = {
         "email": "minor@example.com",
+        "username": "minor_user",
         "password": "strongpassword123",
         "date_of_birth": "2015-01-15",
     }
@@ -34,6 +35,7 @@ async def test_signup_rejects_under_18(client: AsyncClient):
 async def test_signup_rejects_future_dob(client: AsyncClient):
     payload = {
         "email": "future@example.com",
+        "username": "future_user",
         "password": "strongpassword123",
         "date_of_birth": "2999-01-01",
     }
@@ -45,13 +47,26 @@ async def test_signup_rejects_duplicate_email(client: AsyncClient, adult_signup_
     first = await client.post("/auth/signup", json=adult_signup_payload)
     assert first.status_code == 201
 
-    second = await client.post("/auth/signup", json=adult_signup_payload)
+    # Same email, different username — should still reject as duplicate email
+    duplicate = {**adult_signup_payload, "username": "different_user"}
+    second = await client.post("/auth/signup", json=duplicate)
+    assert second.status_code == 409
+
+
+async def test_signup_rejects_duplicate_username(client: AsyncClient, adult_signup_payload: dict):
+    first = await client.post("/auth/signup", json=adult_signup_payload)
+    assert first.status_code == 201
+
+    # Different email, same username — should reject as duplicate username
+    duplicate = {**adult_signup_payload, "email": "other@example.com"}
+    second = await client.post("/auth/signup", json=duplicate)
     assert second.status_code == 409
 
 
 async def test_signup_rejects_short_password(client: AsyncClient):
     payload = {
         "email": "shortpw@example.com",
+        "username": "shortpw_user",
         "password": "short",
         "date_of_birth": "2000-01-01",
     }

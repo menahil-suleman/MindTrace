@@ -49,6 +49,7 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 def adult_signup_payload() -> dict:
     return {
         "email": "sanan@example.com",
+        "username": "sanan_test",
         "password": "strongpassword123",
         "date_of_birth": "2000-01-15",
     }
