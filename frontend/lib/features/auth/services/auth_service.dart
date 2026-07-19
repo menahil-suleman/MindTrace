@@ -87,6 +87,81 @@ class AuthService {
     throw AuthException('Login failed (${response.statusCode})');
   }
 
+  // ── Forgot password ───────────────────────────────────────────────────────
+  /// Calls POST /auth/forgot-password. Always succeeds from the caller's
+  /// perspective — the backend returns the same generic message whether the
+  /// email is registered or not.
+  Future<void> forgotPassword({required String email}) async {
+    final uri = Uri.parse('${AppConstants.baseUrl}/auth/forgot-password');
+    final response = await http
+        .post(
+          uri,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'email': email}),
+        )
+        .timeout(const Duration(seconds: 15));
+
+    if (response.statusCode == 200) return;
+
+    final body = _tryDecodeBody(response.body);
+    final detail = body?['detail'];
+    if (detail is String) throw AuthException(detail);
+    throw AuthException('Request failed (${response.statusCode})');
+  }
+
+  // ── Verify reset code ─────────────────────────────────────────────────────
+  /// Calls POST /auth/verify-reset-code.
+  /// Returns the short-lived reset token to be passed to [resetPassword].
+  Future<String> verifyResetCode({
+    required String email,
+    required String code,
+  }) async {
+    final uri = Uri.parse('${AppConstants.baseUrl}/auth/verify-reset-code');
+    final response = await http
+        .post(
+          uri,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'email': email, 'code': code}),
+        )
+        .timeout(const Duration(seconds: 15));
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      return body['reset_token'] as String;
+    }
+
+    final body = _tryDecodeBody(response.body);
+    final detail = body?['detail'];
+    if (detail is String) throw AuthException(detail);
+    throw AuthException('Verification failed (${response.statusCode})');
+  }
+
+  // ── Reset password ────────────────────────────────────────────────────────
+  /// Calls POST /auth/reset-password with the verified reset token.
+  Future<void> resetPassword({
+    required String resetToken,
+    required String newPassword,
+  }) async {
+    final uri = Uri.parse('${AppConstants.baseUrl}/auth/reset-password');
+    final response = await http
+        .post(
+          uri,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'reset_token': resetToken,
+            'new_password': newPassword,
+          }),
+        )
+        .timeout(const Duration(seconds: 15));
+
+    if (response.statusCode == 200) return;
+
+    final body = _tryDecodeBody(response.body);
+    final detail = body?['detail'];
+    if (detail is String) throw AuthException(detail);
+    throw AuthException('Password reset failed (${response.statusCode})');
+  }
+
   // ── Token helpers ─────────────────────────────────────────────────────────
   Future<void> _persistToken(String token) async {
     final prefs = await SharedPreferences.getInstance();

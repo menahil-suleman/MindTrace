@@ -4,6 +4,7 @@ import '../../../core/theme.dart';
 import '../services/auth_service.dart';
 import '../widgets/auth_toggle.dart';
 import '../widgets/clinical_text_field.dart';
+import 'forgot_password_screen.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -166,6 +167,31 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           onPressed: () =>
                               setState(() => _obscurePassword = !_obscurePassword),
+                        ),
+                      ),
+
+                      // Forgot password link
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () =>
+                              Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => const ForgotPasswordScreen()),
+                          ),
+                          style: TextButton.styleFrom(
+                            foregroundColor: MindColors.primaryContainer,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 4, vertical: 4),
+                          ),
+                          child: const Text(
+                            'Forgot Password?',
+                            style: TextStyle(
+                              fontFamily: 'Manrope',
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                       ),
 
