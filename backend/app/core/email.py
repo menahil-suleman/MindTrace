@@ -25,7 +25,7 @@ def _render_reset_code_email(code: str) -> str:
     <div style="font-family:'Manrope',Arial,sans-serif;max-width:420px;margin:0 auto;
                 background:#FFFFFF;border-radius:16px;overflow:hidden;border:1px solid #E0E0DA;">
       <div style="padding:32px 24px 8px;text-align:center;">
-        <img src="{LOGO_URL}" alt="Mindtrace" style="width:200px;height:auto;" />
+        <img src="{LOGO_URL}" alt="MindTrace" style="width:200px;height:auto;" />
       </div>
       <div style="padding:16px 28px 32px;">
         <p style="font-size:16px;color:{_DARK_GREEN};font-weight:600;margin:0 0 8px;text-align:center;">
@@ -43,7 +43,7 @@ def _render_reset_code_email(code: str) -> str:
       </div>
       <div style="background:{_FOOTER_BG};padding:16px 28px;text-align:center;">
         <span style="font-size:12px;color:{_FOOTER_MUTED};">
-          Mindtrace &middot; non-diagnostic mental health screening
+          MindTrace &middot; non-diagnostic mental health screening
         </span>
       </div>
     </div>
@@ -63,7 +63,7 @@ async def send_password_reset_email(to_email: str, code: str) -> None:
     payload = {
         "sender": {"name": settings.brevo_sender_name, "email": settings.brevo_sender_email},
         "to": [{"email": to_email}],
-        "subject": "Your Mindtrace password reset code",
+        "subject": "Your MindTrace password reset code",
         "htmlContent": _render_reset_code_email(code),
     }
     headers = {
