@@ -7,6 +7,7 @@ from app.core.config import get_settings
 
 class UserCreate(BaseModel):
     email: EmailStr
+    username: str = Field(min_length=3, max_length=50, pattern=r"^[a-zA-Z0-9_]+$")
     password: str = Field(min_length=8, max_length=72)
     date_of_birth: date
 
@@ -33,6 +34,7 @@ class UserOut(BaseModel):
 
     id: str
     email: EmailStr
+    username: str
     created_at: datetime
 
 

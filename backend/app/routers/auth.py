@@ -23,8 +23,16 @@ async def signup(payload: UserCreate, db: AsyncSession = Depends(get_db)) -> Use
             detail="An account with this email already exists.",
         )
 
+    existing_username = await db.scalar(select(User).where(User.username == payload.username))
+    if existing_username is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This username is already taken.",
+        )
+
     user = User(
         email=payload.email,
+        username=payload.username,
         hashed_password=hash_password(payload.password),
         date_of_birth=payload.date_of_birth,
     )
