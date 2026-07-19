@@ -53,3 +53,17 @@ def adult_signup_payload() -> dict:
         "password": "strongpassword123",
         "date_of_birth": "2000-01-15",
     }
+
+
+@pytest.fixture
+def sent_reset_emails(monkeypatch) -> list:
+    """Intercepts app.routers.password_reset.send_password_reset_email so tests
+    can read the generated OTP code without needing real Brevo credentials or
+    network access, and without ever sending a real email."""
+    sent: list[dict] = []
+
+    async def fake_send(to_email: str, code: str) -> None:
+        sent.append({"to": to_email, "code": code})
+
+    monkeypatch.setattr("app.routers.password_reset.send_password_reset_email", fake_send)
+    return sent

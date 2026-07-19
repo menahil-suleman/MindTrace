@@ -19,10 +19,10 @@ MindTrace is a clinical mental health screening and monitoring app.
 MindTrace/
 ├── backend/               # FastAPI Python backend
 │   ├── app/
-│   │   ├── core/          # Config, security (JWT), settings
+│   │   ├── core/          # Config, security (JWT), settings, email (Brevo)
 │   │   ├── db/            # Database session (SQLAlchemy async)
-│   │   ├── models/        # SQLAlchemy ORM models (User)
-│   │   ├── routers/       # API route handlers (auth)
+│   │   ├── models/        # SQLAlchemy ORM models (User, PasswordResetCode)
+│   │   ├── routers/       # API route handlers (auth, password_reset)
 │   │   ├── schemas/       # Pydantic request/response schemas
 │   │   ├── crisis/        # Hardcoded crisis response handler
 │   │   └── main.py        # FastAPI app entry point + CORS
@@ -79,6 +79,7 @@ MindTrace/
 ### 2. Configuration (`backend/app/core/config.py`)
 - Reads settings from `.env` file using Pydantic BaseSettings
 - Settings: `DATABASE_URL`, `JWT_SECRET_KEY`, `JWT_ALGORITHM`, `ACCESS_TOKEN_EXPIRE_MINUTES`, `MIN_SIGNUP_AGE`
+- Forgot-password settings: `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`, `RESET_CODE_EXPIRE_MINUTES` (10), `RESET_CODE_RESEND_COOLDOWN_SECONDS` (45), `RESET_CODE_MAX_ATTEMPTS` (5), `RESET_TOKEN_EXPIRE_MINUTES` (10)
 
 ### 3. Database (`backend/app/db/session.py`)
 - Async SQLAlchemy engine + session factory
@@ -89,6 +90,11 @@ MindTrace/
 - SQLAlchemy ORM model for `users` table
 - Fields: `id` (UUID), `email` (unique), `username` (unique), `hashed_password`, `date_of_birth`, `gender` (optional), `is_active`, `created_at`
 
+### 4a. Password Reset Code Model (`backend/app/models/password_reset_code.py`)
+- SQLAlchemy ORM model for `password_reset_codes` table — one row per forgot-password OTP attempt
+- Fields: `id`, `user_id` (FK to `users`, cascade delete), `code_hash` (bcrypt — the raw 6-digit code is never stored), `expires_at`, `attempt_count`, `verified_at`, `consumed_at`, `created_at`
+- `verified_at` prevents a code being checked twice; `consumed_at` prevents the reset token it produces from being replayed
+
 ### 5. Schemas (`backend/app/schemas/user.py`)
 - `UserCreate`: email, username, password, date_of_birth, gender (optional — input for signup)
   - `gender` is validated against a fixed set: `male`, `female`, `non-binary`, `prefer-not-to-say` — matches the Flutter dropdown exactly
@@ -96,9 +102,23 @@ MindTrace/
 - `Token`: access_token, token_type (response after login)
 - `UserLogin`: email, password (input for login)
 
+### 5a. Password Reset Schemas (`backend/app/schemas/password_reset.py`)
+- `ForgotPasswordRequest`: email
+- `VerifyResetCodeRequest`: email, code (exactly 6 digits)
+- `VerifyResetCodeResponse`: reset_token
+- `ResetPasswordRequest`: reset_token, new_password (8+ chars — same policy as signup)
+- `MessageResponse`: message (generic, enumeration-safe response used by forgot-password and reset-password)
+
 ### 6. Security (`backend/app/core/security.py`)
 - Password hashing with bcrypt (`passlib`)
 - JWT token creation and verification (`python-jose`)
+- Forgot-password additions: `generate_reset_code()` (cryptographically random 6-digit code), `hash_reset_code()` / `verify_reset_code()` (bcrypt, same context as passwords), `create_password_reset_token()` / `decode_password_reset_token()` — a short-lived, purpose-scoped JWT (`purpose: password_reset`) distinct from the login access token, binding a specific `PasswordResetCode` row to the token so it can't be reused across different codes
+
+### 6a. Email (`backend/app/core/email.py`)
+- `send_password_reset_email(to_email, code)` — sends the OTP via Brevo's transactional email REST API (`https://api.brevo.com/v3/smtp/email`), using `httpx` (no new dependency needed)
+- Branded HTML email matching the app's theme (`#163422` dark green header with the Mindtrace logo, `#EAF7EA` light-green pill for the code, Manrope-style font)
+- If `BREVO_API_KEY` / `BREVO_SENDER_EMAIL` aren't set (local dev without real credentials, and CI), the code is logged instead of emailed — no real Brevo account needed to run or test the flow
+- A Brevo send failure is logged, not raised — the code is already saved, so the user can just hit "Resend Code" rather than getting a 500
 
 ### 7. Auth Router (`backend/app/routers/auth.py`)
 - `POST /auth/signup` — creates a new user, returns `UserOut` (201)
@@ -106,21 +126,33 @@ MindTrace/
 - `POST /auth/login` — verifies credentials, returns JWT token (200)
 - `GET /auth/me` — returns the current user from a valid bearer token (200), or 401/403 if missing/invalid
 
+### 7a. Password Reset Router (`backend/app/routers/password_reset.py`)
+- `POST /auth/forgot-password` — request a 6-digit reset code by email. Also doubles as "Resend Code". Always returns the same generic message (`"If an account exists for that email, a password reset code has been sent."`) regardless of whether the email is registered or the request was silently suppressed by the resend cooldown — never reveals which case occurred
+- `POST /auth/verify-reset-code` — checks the code, returns a short-lived `reset_token` (200) or a generic 400 for any wrong/expired/unknown case
+  - Code expires after 10 minutes (`RESET_CODE_EXPIRE_MINUTES`)
+  - Locks out after 5 wrong attempts (`RESET_CODE_MAX_ATTEMPTS`) — a fresh code must be requested
+  - A correctly-verified code can't be verified a second time
+- `POST /auth/reset-password` — exchanges the `reset_token` for actually changing the password (200), or a generic 400 if the token is invalid, expired, or already used
+  - `reset_token` is single-use (enforced via `PasswordResetCode.consumed_at`)
+
 ### 8. Database Migrations (`backend/alembic/`)
 - `388eb01e7055` — creates the `users` table
 - `a1b2c3d4e5f6` — adds `username` (nullable → backfilled with a placeholder → set NOT NULL → unique index). Fixed to use `batch_alter_table()` and `substr()` instead of Postgres-only `alter_column()`/`SUBSTRING()`, so it now runs cleanly on SQLite as well as Postgres.
 - `b7c8d9e0f1a2` — adds nullable `gender` column (no backfill needed, since it's optional)
+- `6f28d851f2c7` — creates the `password_reset_codes` table (FK to `users`, cascade delete, indexed on `user_id`)
 
 ### 9. Crisis Handler (`backend/app/crisis/hardcoded_response.py`)
 - Hardcoded safety responses for crisis keywords (no AI needed for this)
 
 ### 10. Tests (`backend/tests/`)
-- `conftest.py` — pytest fixtures (test DB, test client, shared signup payload including `username`)
+- `conftest.py` — pytest fixtures (test DB, test client, shared signup payload including `username`, and `sent_reset_emails` — intercepts the Brevo call so tests can read the generated OTP without real credentials or network access)
 - `test_auth.py` — 13 tests covering signup, login, `/auth/me`, age gate, duplicate email, and duplicate username
-- All 13 tests passing
+- `test_password_reset.py` — 14 tests covering: request-code for existing/unknown email (identical generic response), resend cooldown, resend after cooldown expires, correct/wrong code, attempt lockout, code expiry, code single-use, full reset flow (old password stops working, new one works), reset-token single-use, and the reset password-length policy
+- All 27 tests passing
 
 ### 11. CI (`/.github/workflows/ci.yml`)
 - GitHub Actions pipeline that runs backend tests and Flutter checks on every push
+- No changes needed for the forgot-password feature — no new dependencies were added
 
 ---
 
@@ -202,7 +234,11 @@ JWT_SECRET_KEY=your-secret-here
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 MIN_SIGNUP_AGE=18
+BREVO_API_KEY=your-brevo-api-key-here
+BREVO_SENDER_EMAIL=your-verified-sender@example.com
+BREVO_SENDER_NAME=Mindtrace
 ```
+Note: `BREVO_API_KEY` is personal to whoever's running the backend locally — each team member should use their own free Brevo account/key rather than sharing one. Leave it blank and forgot-password codes are just logged to the console instead of emailed, so the whole flow still works for local testing without any Brevo account at all.
 
 ---
 
@@ -244,10 +280,10 @@ flutter run -d windows     # desktop (needs Visual Studio C++ tools)
 ## What's NOT Built Yet (Next Steps)
 
 ### Backend
-- [ ] Forgot password flow (send OTP to email)
-- [ ] OTP verification endpoint
-- [ ] Reset password endpoint
-- [ ] Email sending (fastapi-mail or SendGrid)
+- [x] Forgot password flow (send OTP to email)
+- [x] OTP verification endpoint
+- [x] Reset password endpoint
+- [x] Email sending (Brevo transactional API)
 - [ ] User profile endpoints
 - [ ] Mental health screening/assessment endpoints
 - [ ] ML model integration
@@ -273,3 +309,4 @@ flutter run -d windows     # desktop (needs Visual Studio C++ tools)
 4. ~~**Full Name / Username** — exist in the original design mockup but are not in the backend model yet.~~ **Resolved** — `username` is now a required column on `User`, unique, validated, and checked for duplicates on signup.
 5. **JWT after login** — token is saved to SharedPreferences but there's no route guard or auto-login yet.
 6. **Frontend `UserOut` model** — doesn't yet parse `username`/`gender` out of the backend response (see Frontend Next Steps above). Not currently causing any bugs, since nothing in the UI reads those fields yet.
+7. **Brevo API key** — each developer needs their own free Brevo account and API key in their local `.env` (never committed) to see real forgot-password emails; without one, the OTP code is just logged to the console, which is enough to test the flow end-to-end.

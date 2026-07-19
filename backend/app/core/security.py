@@ -1,3 +1,4 @@
+import secrets
 from datetime import datetime, timedelta, timezone
 
 from jose import JWTError, jwt
@@ -43,3 +44,60 @@ def decode_access_token(token: str) -> str | None:
         return payload.get("sub")
     except JWTError:
         return None
+
+
+# ── Forgot-password OTP helpers ──────────────────────────────────────────────
+# The 6-digit code is short and numeric, so it's hashed with the same bcrypt
+# context used for passwords rather than inventing a second scheme.
+
+
+def generate_reset_code() -> str:
+    """A cryptographically random 6-digit code, zero-padded (e.g. '004821')."""
+    return f"{secrets.randbelow(1_000_000):06d}"
+
+
+def hash_reset_code(code: str) -> str:
+    return pwd_context.hash(code)
+
+
+def verify_reset_code(plain_code: str, code_hash: str) -> bool:
+    return pwd_context.verify(plain_code, code_hash)
+
+
+RESET_TOKEN_PURPOSE = "password_reset"
+
+
+def create_password_reset_token(user_id: str, code_id: str) -> str:
+    """A short-lived JWT proving a specific OTP (`code_id`) was just verified for `user_id`.
+
+    Kept separate from the login access token: different purpose claim, much
+    shorter expiry, and single-use (enforced via `PasswordResetCode.consumed_at`
+    in the router, not by this token alone).
+    """
+    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.reset_token_expire_minutes)
+    to_encode = {
+        "sub": user_id,
+        "code_id": code_id,
+        "purpose": RESET_TOKEN_PURPOSE,
+        "exp": expire,
+    }
+    return jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+
+
+def decode_password_reset_token(token: str) -> dict | None:
+    """Return {"user_id": ..., "code_id": ...} if `token` is a valid, unexpired
+    password-reset token, or None otherwise."""
+    try:
+        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+    except JWTError:
+        return None
+
+    if payload.get("purpose") != RESET_TOKEN_PURPOSE:
+        return None
+
+    user_id = payload.get("sub")
+    code_id = payload.get("code_id")
+    if not user_id or not code_id:
+        return None
+
+    return {"user_id": user_id, "code_id": code_id}
