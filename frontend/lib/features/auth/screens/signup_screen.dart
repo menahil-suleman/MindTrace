@@ -89,8 +89,8 @@ class _SignupScreenState extends State<SignupScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     if (!_ageConfirmed) {
-      setState(() =>
-          _errorMessage = 'Please confirm you are 18+ or have parental consent.');
+      setState(() => _errorMessage =
+          'Please confirm you are 18+ or have parental consent.');
       return;
     }
 
@@ -112,6 +112,7 @@ class _SignupScreenState extends State<SignupScreen> {
         username: _usernameCtrl.text.trim(),
         password: _passwordCtrl.text,
         dateOfBirth: dob,
+        gender: _selectedGender,
       );
 
       if (!mounted) return;
@@ -132,8 +133,8 @@ class _SignupScreenState extends State<SignupScreen> {
     } on AuthException catch (e) {
       setState(() => _errorMessage = e.message);
     } catch (e) {
-      setState(() =>
-          _errorMessage = 'Could not connect to server. Check your connection.');
+      setState(() => _errorMessage =
+          'Could not connect to server. Check your connection.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -171,7 +172,6 @@ class _SignupScreenState extends State<SignupScreen> {
                     children: [
                       _buildLogo(),
                       const SizedBox(height: 28),
-
                       AuthToggle(
                         selected: 1,
                         onChanged: (index) {
@@ -184,7 +184,6 @@ class _SignupScreenState extends State<SignupScreen> {
                         },
                       ),
                       const SizedBox(height: 28),
-
                       const Text(
                         'Sign Up',
                         textAlign: TextAlign.center,
@@ -207,7 +206,6 @@ class _SignupScreenState extends State<SignupScreen> {
                         ),
                       ),
                       const SizedBox(height: 24),
-
                       ClinicalTextField(
                         label: 'Email Address',
                         placeholder: 'example@medical.com',
@@ -224,7 +222,6 @@ class _SignupScreenState extends State<SignupScreen> {
                         },
                       ),
                       const SizedBox(height: 16),
-
                       ClinicalTextField(
                         label: 'Username',
                         placeholder: 'Choose a unique username',
@@ -243,7 +240,6 @@ class _SignupScreenState extends State<SignupScreen> {
                         },
                       ),
                       const SizedBox(height: 16),
-
                       ClinicalTextField(
                         label: 'Password',
                         placeholder: '••••••••',
@@ -263,7 +259,6 @@ class _SignupScreenState extends State<SignupScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-
                       ClinicalTextField(
                         label: 'Confirm Password',
                         placeholder: '••••••••',
@@ -285,15 +280,11 @@ class _SignupScreenState extends State<SignupScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-
                       _buildDobPicker(),
                       const SizedBox(height: 16),
-
                       _buildGenderDropdown(),
                       const SizedBox(height: 20),
-
                       _buildAgeCheckbox(),
-
                       if (_errorMessage != null) ...[
                         const SizedBox(height: 12),
                         Container(
@@ -314,10 +305,8 @@ class _SignupScreenState extends State<SignupScreen> {
                         ),
                       ],
                       const SizedBox(height: 16),
-
                       _buildSubmitButton(),
                       const SizedBox(height: 20),
-
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -367,7 +356,8 @@ class _SignupScreenState extends State<SignupScreen> {
         fit: BoxFit.contain,
         errorBuilder: (_, __, ___) => const Column(
           children: [
-            Icon(Icons.psychology_outlined, size: 64, color: MindColors.primary),
+            Icon(Icons.psychology_outlined,
+                size: 64, color: MindColors.primary),
             SizedBox(height: 8),
             Text(
               'MindTrace',
@@ -495,12 +485,12 @@ class _SignupScreenState extends State<SignupScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(999),
-              borderSide:
-                  const BorderSide(color: MindColors.primary, width: 2),
+              borderSide: const BorderSide(color: MindColors.primary, width: 2),
             ),
           ),
           borderRadius: BorderRadius.circular(16),
-          icon: const Icon(Icons.expand_more, color: MindColors.onSurfaceVariant),
+          icon:
+              const Icon(Icons.expand_more, color: MindColors.onSurfaceVariant),
           items: _genderOptions
               .map((g) => DropdownMenuItem(
                     value: g.$1,
@@ -560,8 +550,8 @@ class _SignupScreenState extends State<SignupScreen> {
           foregroundColor: Colors.white,
           disabledBackgroundColor:
               MindColors.primaryContainer.withValues(alpha: 0.6),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(999)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
           elevation: 0,
         ),
         child: _isLoading

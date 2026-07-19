@@ -23,6 +23,7 @@ class AuthService {
     required String username,
     required String password,
     required String dateOfBirth,
+    String? gender,
   }) async {
     final uri = Uri.parse('${AppConstants.baseUrl}/auth/signup');
 
@@ -35,12 +36,14 @@ class AuthService {
             'username': username,
             'password': password,
             'date_of_birth': dateOfBirth,
+            if (gender != null) 'gender': gender,
           }),
         )
         .timeout(const Duration(seconds: 15));
 
     if (response.statusCode == 201) {
-      return UserOut.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+      return UserOut.fromJson(
+          jsonDecode(response.body) as Map<String, dynamic>);
     }
 
     // Extract detail from FastAPI error response

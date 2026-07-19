@@ -87,13 +87,14 @@ MindTrace/
 
 ### 4. User Model (`backend/app/models/user.py`)
 - SQLAlchemy ORM model for `users` table
-- Fields: `id` (UUID), `email` (unique), `hashed_password`, `date_of_birth`, `created_at`
+- Fields: `id` (UUID), `email` (unique), `username` (unique), `hashed_password`, `date_of_birth`, `gender` (optional), `is_active`, `created_at`
 
 ### 5. Schemas (`backend/app/schemas/user.py`)
-- `UserCreate`: email, password, date_of_birth (input for signup)
-- `UserOut`: id, email, created_at (response after signup)
+- `UserCreate`: email, username, password, date_of_birth, gender (optional — input for signup)
+  - `gender` is validated against a fixed set: `male`, `female`, `non-binary`, `prefer-not-to-say` — matches the Flutter dropdown exactly
+- `UserOut`: id, email, username, gender, created_at (response after signup / `/auth/me`)
 - `Token`: access_token, token_type (response after login)
-- `LoginRequest`: email, password (input for login)
+- `UserLogin`: email, password (input for login)
 
 ### 6. Security (`backend/app/core/security.py`)
 - Password hashing with bcrypt (`passlib`)
@@ -101,21 +102,25 @@ MindTrace/
 
 ### 7. Auth Router (`backend/app/routers/auth.py`)
 - `POST /auth/signup` — creates a new user, returns `UserOut` (201)
+  - Rejects duplicate email (409) and duplicate username (409), separately
 - `POST /auth/login` — verifies credentials, returns JWT token (200)
+- `GET /auth/me` — returns the current user from a valid bearer token (200), or 401/403 if missing/invalid
 
 ### 8. Database Migrations (`backend/alembic/`)
-- Alembic set up for schema migrations
-- Migration `388eb01e7055` — creates the `users` table
+- `388eb01e7055` — creates the `users` table
+- `a1b2c3d4e5f6` — adds `username` (nullable → backfilled with a placeholder → set NOT NULL → unique index). Fixed to use `batch_alter_table()` and `substr()` instead of Postgres-only `alter_column()`/`SUBSTRING()`, so it now runs cleanly on SQLite as well as Postgres.
+- `b7c8d9e0f1a2` — adds nullable `gender` column (no backfill needed, since it's optional)
 
 ### 9. Crisis Handler (`backend/app/crisis/hardcoded_response.py`)
 - Hardcoded safety responses for crisis keywords (no AI needed for this)
 
 ### 10. Tests (`backend/tests/`)
-- `conftest.py` — pytest fixtures (test DB, test client)
-- `test_auth.py` — tests for signup and login endpoints
+- `conftest.py` — pytest fixtures (test DB, test client, shared signup payload including `username`)
+- `test_auth.py` — 13 tests covering signup, login, `/auth/me`, age gate, duplicate email, and duplicate username
+- All 13 tests passing
 
 ### 11. CI (`/.github/workflows/ci.yml`)
-- GitHub Actions pipeline that runs backend tests on every push
+- GitHub Actions pipeline that runs backend tests and Flutter checks on every push
 
 ---
 
@@ -130,6 +135,7 @@ MindTrace/
 - Font: Manrope (via google_fonts package)
 - Pill-shaped inputs (border-radius 999)
 - Full ThemeData with inputDecorationTheme and elevatedButtonTheme
+- Uses `.withValues(alpha:)` instead of the deprecated `.withOpacity()`
 
 ### Constants (`lib/core/constants.dart`)
 - `baseUrl`: points to backend
@@ -138,14 +144,14 @@ MindTrace/
 - `tokenKey`: key used to store JWT in SharedPreferences
 
 ### Auth Service (`lib/features/auth/services/auth_service.dart`)
-- `signup(email, password, dateOfBirth)` — calls `POST /auth/signup`
+- `signup(email, username, password, dateOfBirth, gender?)` — calls `POST /auth/signup`; `gender` is optional and only included in the request body when set
 - `login(email, password)` — calls `POST /auth/login`, saves token
 - `getSavedToken()` — reads JWT from SharedPreferences
 - `logout()` — removes JWT from SharedPreferences
 - `AuthException` — custom exception that carries the server's error message
 
 ### Data Models (`lib/features/auth/models/user_model.dart`)
-- `UserOut` — mirrors backend response (id, email, createdAt)
+- `UserOut` — mirrors backend response (id, email, createdAt). **Not yet updated** to parse `username`/`gender` from the response — harmless for now since the app doesn't display them anywhere yet, but worth adding once a profile/dashboard screen needs them.
 - `AuthToken` — mirrors backend token response (accessToken, tokenType)
 
 ### Reusable Widgets
@@ -155,17 +161,18 @@ MindTrace/
 ### Signup Screen (`lib/features/auth/screens/signup_screen.dart`)
 Fields:
 - Email (with format validation)
+- Username (min 3 chars, letters/numbers/underscores only)
 - Password (min 8 chars, show/hide toggle)
 - Confirm Password (must match)
 - Date of Birth (DD/MM/YYYY mask → converted to YYYY-MM-DD for API)
-- Gender dropdown (optional, not sent to backend yet)
+- Gender dropdown (optional) — **now sent to the backend on submit**
 - Age consent checkbox (required)
 
 On submit:
 1. Validates all fields
 2. Checks age consent checkbox
 3. Converts DOB format
-4. Calls `POST /auth/signup`
+4. Calls `POST /auth/signup` with email, username, password, date_of_birth, and gender
 5. On success → shows snackbar → navigates to Login
 6. On error → shows red error box with server message
 
@@ -254,6 +261,7 @@ flutter run -d windows     # desktop (needs Visual Studio C++ tools)
 - [ ] Profile screen
 - [ ] Navigation/routing system (go_router)
 - [ ] State management (Provider or Riverpod)
+- [ ] Update `UserOut` (Dart model) to parse `username`/`gender` from the signup/`/me` response, once a screen needs to display them
 
 ---
 
@@ -261,6 +269,7 @@ flutter run -d windows     # desktop (needs Visual Studio C++ tools)
 
 1. **Virtualization not enabled** — Docker won't start until BIOS virtualization is turned on. The setting is usually under Advanced → CPU → Intel VT-x or AMD SVM.
 2. **Windows desktop** needs Visual Studio 2022 with "Desktop development with C++" workload. Use Chrome for now.
-3. **Gender field** — exists in the signup UI but is not sent to the backend (no column in DB yet).
-4. **Full Name / Username** — exist in the original design mockup but are not in the backend model yet.
+3. ~~**Gender field** — exists in the signup UI but is not sent to the backend (no column in DB yet).~~ **Resolved** — `gender` is now a column on `User`, part of `UserCreate`/`UserOut`, and sent from the signup form.
+4. ~~**Full Name / Username** — exist in the original design mockup but are not in the backend model yet.~~ **Resolved** — `username` is now a required column on `User`, unique, validated, and checked for duplicates on signup.
 5. **JWT after login** — token is saved to SharedPreferences but there's no route guard or auto-login yet.
+6. **Frontend `UserOut` model** — doesn't yet parse `username`/`gender` out of the backend response (see Frontend Next Steps above). Not currently causing any bugs, since nothing in the UI reads those fields yet.

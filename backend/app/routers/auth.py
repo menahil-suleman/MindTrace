@@ -35,6 +35,7 @@ async def signup(payload: UserCreate, db: AsyncSession = Depends(get_db)) -> Use
         username=payload.username,
         hashed_password=hash_password(payload.password),
         date_of_birth=payload.date_of_birth,
+        gender=payload.gender,
     )
     db.add(user)
     await db.commit()

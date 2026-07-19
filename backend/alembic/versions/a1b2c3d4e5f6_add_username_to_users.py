@@ -21,8 +21,14 @@ def upgrade() -> None:
     # Add username column — nullable first so existing rows don't violate the constraint,
     # then backfill with a placeholder derived from the row id, then set NOT NULL.
     op.add_column('users', sa.Column('username', sa.String(length=50), nullable=True))
-    op.execute("UPDATE users SET username = 'user_' || SUBSTRING(id, 1, 8) WHERE username IS NULL")
-    op.alter_column('users', 'username', nullable=False)
+    # substr() (not SUBSTRING()) works on both Postgres and SQLite, so this
+    # backfill runs the same way whichever database is behind DATABASE_URL.
+    op.execute("UPDATE users SET username = 'user_' || substr(id, 1, 8) WHERE username IS NULL")
+    # batch_alter_table is required for SQLite, which can't ALTER COLUMN directly —
+    # it transparently recreates the table there. On Postgres it just runs a normal
+    # ALTER TABLE, so this is safe either way.
+    with op.batch_alter_table('users') as batch_op:
+        batch_op.alter_column('username', nullable=False)
     op.create_index(op.f('ix_users_username'), 'users', ['username'], unique=True)
 
 
