@@ -2,8 +2,8 @@
 
 | Week | Feature | Status | Blockers / Notes | Carried to Buffer? |
 |------|---------|--------|-------------------|---------------------|
-| 1 | Flutter Setup + Scaffolding + Auth | Not started | | Yes |
-| 2 | Chatbot 1 + Core Questionnaires | Not started | | No |
+| 1 | Flutter Setup + Scaffolding + Auth | Completed | | Yes |
+| 2 | Chatbot 1 + Core Questionnaires | In progress | | No |
 | 3 | Crisis Safety Check + Basic Dashboard | Not started | | No |
 | 4 | Daily Check-in + Push Notifications | Not started | | No |
 | 5 | ML Risk Classifier | Not started | | No |
