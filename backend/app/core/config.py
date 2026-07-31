@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     reset_code_max_attempts: int = 5
     reset_token_expire_minutes: int = 10
 
+    # LLM — Groq (https://console.groq.com → API Keys → free tier available)
+    # If unset, the chatbot endpoint will return a 503 with a clear error message.
+    groq_api_key: str | None = None
+    # Model to use — llama-3.3-70b-versatile is free on Groq's free tier
+    groq_model: str = "llama-3.3-70b-versatile"
+
 
 @lru_cache
 def get_settings() -> Settings:

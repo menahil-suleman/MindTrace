@@ -2,7 +2,10 @@ version: "3.8"
 
 services:
   db:
-    image: postgres:16
+    # pgvector/pgvector includes the pgvector extension on top of Postgres 16
+    # pgvector lets us store and search vectors (embeddings) inside Postgres
+    # No separate vector database needed — everything in one place
+    image: pgvector/pgvector:pg16
     restart: always
     environment:
       POSTGRES_USER: appuser
