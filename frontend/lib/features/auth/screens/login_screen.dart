@@ -8,7 +8,11 @@ import 'forgot_password_screen.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  /// Called when the user taps "Sign Up" — the parent [AuthScreen] slides
+  /// to the signup page instead of doing a route push.
+  final VoidCallback? onSwitchToSignup;
+
+  const LoginScreen({super.key, this.onSwitchToSignup});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -112,10 +116,14 @@ class _LoginScreenState extends State<LoginScreen> {
                         selected: 0,
                         onChanged: (index) {
                           if (index == 1) {
-                            Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(
-                                  builder: (_) => const SignupScreen()),
-                            );
+                            if (widget.onSwitchToSignup != null) {
+                              widget.onSwitchToSignup!();
+                            } else {
+                              Navigator.of(context).pushReplacement(
+                                MaterialPageRoute(
+                                    builder: (_) => const SignupScreen()),
+                              );
+                            }
                           }
                         },
                       ),
@@ -262,10 +270,16 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           GestureDetector(
-                            onTap: () => Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(
-                                  builder: (_) => const SignupScreen()),
-                            ),
+                            onTap: () {
+                              if (widget.onSwitchToSignup != null) {
+                                widget.onSwitchToSignup!();
+                              } else {
+                                Navigator.of(context).pushReplacement(
+                                  MaterialPageRoute(
+                                      builder: (_) => const SignupScreen()),
+                                );
+                              }
+                            },
                             child: const Text(
                               'Sign Up',
                               style: TextStyle(

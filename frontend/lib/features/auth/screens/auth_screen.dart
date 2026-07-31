@@ -47,14 +47,16 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return PageView(
-      controller: _pageController,
-      // Disable swipe — navigation is only through the toggle/links
-      physics: const NeverScrollableScrollPhysics(),
-      children: [
-        LoginScreen(onSwitchToSignup: () => switchTo(1)),
-        SignupScreen(onSwitchToLogin: () => switchTo(0)),
-      ],
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: PageView(
+        controller: _pageController,
+        physics: const NeverScrollableScrollPhysics(),
+        children: [
+          LoginScreen(onSwitchToSignup: () => switchTo(1)),
+          SignupScreen(onSwitchToLogin: () => switchTo(0)),
+        ],
+      ),
     );
   }
 }
