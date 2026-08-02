@@ -41,6 +41,7 @@ LEARN — Reciprocal Rank Fusion (RRF):
 """
 
 import asyncio
+import json
 import logging
 from functools import lru_cache
 
@@ -237,12 +238,12 @@ async def seed_knowledge_base(db: AsyncSession) -> None:
         await db.execute(
             text("""
                 INSERT INTO knowledge_chunks (content, category, metadata, embedding)
-                VALUES (:content, :category, :metadata, :embedding::vector)
+                VALUES (:content, :category, :metadata, (:embedding)::vector)
             """),
             {
                 "content": chunk.content,
                 "category": chunk.category,
-                "metadata": str(chunk.metadata).replace("'", '"'),
+                "metadata": json.dumps(chunk.metadata),
                 "embedding": str(vector),
             },
         )
@@ -266,9 +267,9 @@ async def semantic_search(
     """
     result = await db.execute(
         text("""
-            SELECT id, 1 - (embedding <-> :query_vec::vector) AS similarity
+            SELECT id, 1 - (embedding <-> (:query_vec)::vector) AS similarity
             FROM knowledge_chunks
-            ORDER BY embedding <-> :query_vec::vector
+            ORDER BY embedding <-> (:query_vec)::vector
             LIMIT :top_k
         """),
         {"query_vec": str(query_vector), "top_k": top_k},

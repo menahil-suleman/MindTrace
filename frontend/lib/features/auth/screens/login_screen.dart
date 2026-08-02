@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme.dart';
+import '../../assessment/screens/start_screen.dart';
 import '../services/auth_service.dart';
 import '../widgets/auth_toggle.dart';
 import '../widgets/clinical_text_field.dart';
@@ -56,7 +57,9 @@ class _LoginScreenState extends State<LoginScreen> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
-      // TODO: Navigate to home/dashboard screen
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const StartScreen()),
+      );
     } on AuthException catch (e) {
       setState(() => _errorMessage = e.message);
     } catch (_) {
