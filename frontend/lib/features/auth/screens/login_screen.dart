@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme.dart';
+import '../../assessment/screens/start_screen.dart';
 import '../services/auth_service.dart';
 import '../widgets/auth_toggle.dart';
 import '../widgets/clinical_text_field.dart';
@@ -8,7 +9,11 @@ import 'forgot_password_screen.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  /// Called when the user taps "Sign Up" — the parent [AuthScreen] slides
+  /// to the signup page instead of doing a route push.
+  final VoidCallback? onSwitchToSignup;
+
+  const LoginScreen({super.key, this.onSwitchToSignup});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -52,7 +57,9 @@ class _LoginScreenState extends State<LoginScreen> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
-      // TODO: Navigate to home/dashboard screen
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const StartScreen()),
+      );
     } on AuthException catch (e) {
       setState(() => _errorMessage = e.message);
     } catch (_) {
@@ -112,10 +119,14 @@ class _LoginScreenState extends State<LoginScreen> {
                         selected: 0,
                         onChanged: (index) {
                           if (index == 1) {
-                            Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(
-                                  builder: (_) => const SignupScreen()),
-                            );
+                            if (widget.onSwitchToSignup != null) {
+                              widget.onSwitchToSignup!();
+                            } else {
+                              Navigator.of(context).pushReplacement(
+                                MaterialPageRoute(
+                                    builder: (_) => const SignupScreen()),
+                              );
+                            }
                           }
                         },
                       ),
@@ -262,10 +273,16 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           GestureDetector(
-                            onTap: () => Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(
-                                  builder: (_) => const SignupScreen()),
-                            ),
+                            onTap: () {
+                              if (widget.onSwitchToSignup != null) {
+                                widget.onSwitchToSignup!();
+                              } else {
+                                Navigator.of(context).pushReplacement(
+                                  MaterialPageRoute(
+                                      builder: (_) => const SignupScreen()),
+                                );
+                              }
+                            },
                             child: const Text(
                               'Sign Up',
                               style: TextStyle(

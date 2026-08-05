@@ -24,6 +24,12 @@ dependencies:
   # Form validation helpers
   intl: ^0.19.0
 
+  # SHA-256 hashing for crisis-log (never send raw trigger text)
+  crypto: ^3.0.3
+
+  # Dialing helpline numbers from the Crisis screen
+  url_launcher: ^6.3.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

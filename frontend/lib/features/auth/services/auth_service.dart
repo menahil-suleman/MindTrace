@@ -58,6 +58,28 @@ class AuthService {
     throw AuthException('Signup failed (${response.statusCode})');
   }
 
+  // ── Current user ─────────────────────────────────────────────────────────
+  /// Calls GET /auth/me using the saved JWT. Used by Sprint-2 screens (e.g.
+  /// the Start Screen greeting) that need the logged-in user's name.
+  Future<UserOut> getCurrentUser() async {
+    final token = await getSavedToken();
+    if (token == null) throw const AuthException('You are not logged in.');
+
+    final uri = Uri.parse('${AppConstants.baseUrl}/auth/me');
+    final response = await http
+        .get(uri, headers: {'Authorization': 'Bearer $token'})
+        .timeout(const Duration(seconds: 15));
+
+    if (response.statusCode == 200) {
+      return UserOut.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+    }
+
+    final body = _tryDecodeBody(response.body);
+    final detail = body?['detail'];
+    if (detail is String) throw AuthException(detail);
+    throw AuthException('Could not load profile (${response.statusCode})');
+  }
+
   // ── Login ─────────────────────────────────────────────────────────────────
   /// Calls POST /auth/login and persists the JWT in SharedPreferences.
   Future<AuthToken> login({
