@@ -52,7 +52,6 @@ app.include_router(password_reset.router)
 app.include_router(chatbot.router)
 app.include_router(assessment.router)
 
-
 @app.get("/health", tags=["health"])
 async def health_check() -> dict[str, str]:
     return {"status": "ok"}

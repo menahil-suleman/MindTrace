@@ -144,11 +144,12 @@ class _OtpScreenState extends State<OtpScreen> {
 
             // ── Main content ─────────────────────────────────────────────
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 24, vertical: 16),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 480),
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 24, vertical: 16),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 480),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -297,6 +298,7 @@ class _OtpScreenState extends State<OtpScreen> {
                         ],
                       ),
                     ],
+                  ),
                   ),
                 ),
               ),
