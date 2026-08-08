@@ -173,6 +173,15 @@ class AuthService {
     return prefs.getString(AppConstants.tokenKey);
   }
 
+  /// Alias for getSavedToken — used by auth_service consumers
+  Future<String?> getToken() => getSavedToken();
+
+  /// Returns true if a token is saved — used at startup to skip login screen
+  Future<bool> isLoggedIn() async {
+    final token = await getSavedToken();
+    return token != null && token.isNotEmpty;
+  }
+
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(AppConstants.tokenKey);

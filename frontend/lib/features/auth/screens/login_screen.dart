@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme.dart';
+import '../../home/screens/dashboard_screen.dart';
 import '../services/auth_service.dart';
 import '../widgets/auth_toggle.dart';
 import '../widgets/clinical_text_field.dart';
@@ -48,15 +49,10 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Logged in successfully!'),
-          backgroundColor: MindColors.primaryContainer,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        (_) => false,
       );
-      // TODO: Navigate to home/dashboard screen
     } on AuthException catch (e) {
       setState(() => _errorMessage = e.message);
     } catch (_) {
