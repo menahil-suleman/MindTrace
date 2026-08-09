@@ -2,17 +2,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../../core/constants.dart';
+import '../../assessment/models/assessment_models.dart';
 import '../../auth/services/auth_service.dart';
 
-/// A single message in the conversation.
-class ChatMessage {
-  final String role;    // 'user' | 'assistant'
-  final String content;
-
-  const ChatMessage({required this.role, required this.content});
-
-  Map<String, dynamic> toJson() => {'role': role, 'content': content};
-}
+// Re-export ChatMessage so existing imports of this file still work
+export '../../assessment/models/assessment_models.dart' show ChatMessage;
 
 /// What the backend returns from POST /chatbot/intake
 class ChatResponse {
@@ -36,8 +30,6 @@ class ChatException implements Exception {
 class ChatService {
   final _authService = AuthService();
 
-  /// Send a message to the intake chatbot.
-  /// [history] is every turn so far (not including the new [message]).
   Future<ChatResponse> sendMessage({
     required String message,
     required List<ChatMessage> history,
@@ -45,11 +37,9 @@ class ChatService {
     final token = await _authService.getSavedToken();
     if (token == null) throw const ChatException('Not authenticated.');
 
-    final uri = Uri.parse('${AppConstants.baseUrl}/chatbot/intake');
-
     final response = await http
         .post(
-          uri,
+          Uri.parse('${AppConstants.baseUrl}/chatbot/intake'),
           headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer $token',

@@ -22,8 +22,10 @@ MindTrace/
 │   │   ├── core/          # Config, security (JWT), settings, email (Brevo)
 │   │   ├── db/            # Database session (SQLAlchemy async)
 │   │   ├── models/        # SQLAlchemy ORM models (User, PasswordResetCode)
-│   │   ├── routers/       # API route handlers (auth, password_reset)
+│   │   ├── routers/       # API route handlers (auth, password_reset, chatbot, assessment)
 │   │   ├── schemas/       # Pydantic request/response schemas
+│   │   ├── chatbot/       # Intake chatbot logic + questionnaire_engine.py (GAD-7/PHQ-9/DASS scoring)
+│   │   ├── rag/           # Hybrid (semantic + BM25) retrieval over clinical knowledge base
 │   │   ├── crisis/        # Hardcoded crisis response handler
 │   │   └── main.py        # FastAPI app entry point + CORS
 │   ├── alembic/           # Database migrations
@@ -39,22 +41,39 @@ MindTrace/
 │   │   ├── core/
 │   │   │   ├── theme.dart      # All colors, fonts, input styles
 │   │   │   └── constants.dart  # baseUrl, SharedPrefs keys
-│   │   └── features/auth/
-│   │       ├── models/
-│   │       │   └── user_model.dart     # UserOut, AuthToken data classes
-│   │       ├── services/
-│   │       │   └── auth_service.dart   # signup(), login(), token storage
-│   │       ├── widgets/
-│   │       │   ├── auth_toggle.dart         # Login/Sign Up sliding toggle
-│   │       │   └── clinical_text_field.dart # Reusable pill-shaped input
-│   │       └── screens/
-│   │           ├── signup_screen.dart  # Full signup form
-│   │           └── login_screen.dart   # Login form
+│   │   └── features/
+│   │       ├── auth/
+│   │       │   ├── models/
+│   │       │   │   └── user_model.dart     # UserOut (now includes username/gender), AuthToken
+│   │       │   ├── services/
+│   │       │   │   └── auth_service.dart   # signup(), login(), getCurrentUser(), token storage
+│   │       │   ├── widgets/
+│   │       │   │   ├── auth_toggle.dart         # Login/Sign Up sliding toggle
+│   │       │   │   └── clinical_text_field.dart # Reusable pill-shaped input
+│   │       │   └── screens/
+│   │       │       ├── signup_screen.dart  # Full signup form
+│   │       │       └── login_screen.dart   # Login form → navigates to StartScreen
+│   │       └── assessment/            # Sprint 2 (Feature 2 + 3)
+│   │           ├── models/
+│   │           │   └── assessment_models.dart   # Mirrors every chatbot/assessment endpoint schema
+│   │           ├── services/
+│   │           │   └── assessment_service.dart  # intake, classify, questionnaire, complete, crisis-log
+│   │           ├── widgets/
+│   │           │   ├── assessment_header.dart   # "Step X of Y" + progress bar, used on every screen
+│   │           │   ├── chat_bubble.dart          # Bot/user chat bubbles + typing indicator
+│   │           │   └── option_tiles.dart         # Radio answer tile + quick-reply chip
+│   │           └── screens/
+│   │               ├── start_screen.dart              # Welcome screen, entry point into Sprint 2
+│   │               ├── chatbot_intake_screen.dart      # Freeform chat → POST /chatbot/intake
+│   │               ├── focus_areas_screen.dart         # POST /assessment/classify results
+│   │               ├── questionnaire_flow_screen.dart  # POST /assessment/questionnaire, one Q at a time
+│   │               ├── crisis_screen.dart              # Dedicated crisis screen + /assessment/crisis-log
+│   │               └── results_screen.dart             # POST /assessment/complete summary + gauge
 │   ├── assets/images/logo.png   # MindTrace logo
 │   ├── android/                 # Android platform files
 │   ├── windows/                 # Windows platform files
 │   ├── web/                     # Web platform files
-│   └── pubspec.yaml             # Flutter dependencies
+│   └── pubspec.yaml             # Flutter dependencies (added: crypto, url_launcher)
 │
 ├── ml/                    # ML layer (planned)
 │   └── requirements.txt
@@ -220,7 +239,33 @@ On submit:
 
 ---
 
-## Infrastructure
+## Sprint 2 (Feature 2 + 3) — What's Built
+
+### Backend — 4 new endpoints (`backend/app/routers/chatbot.py`, `assessment.py`)
+- `POST /chatbot/intake` — freeform intake conversation. Hardcoded crisis-keyword check runs **before** the LLM call, so a crisis is never left to the model's judgement. Uses hybrid RAG retrieval (`app/rag/engine.py`: pgvector semantic search + BM25 keyword search, merged with Reciprocal Rank Fusion) to ground replies in the clinical knowledge base.
+- `POST /assessment/classify` — keyword-matches the finished intake conversation to decide which of GAD-7 / PHQ-9 / DASS-Stress to run.
+- `POST /assessment/questionnaire` — stateless, one question at a time (`app/chatbot/questionnaire_engine.py` holds the question banks + scoring). PHQ-9's safety-critical item (question 9) short-circuits to a crisis response if answered above "Not at all."
+- `POST /assessment/complete` — takes all questionnaire scores, returns overall risk level, per-instrument severity, and recommendations.
+- `POST /assessment/crisis-log` — audit log for crisis events. Only ever stores a SHA-256 hash of the triggering text, never the raw message.
+
+### Frontend — full Sprint 2 flow, all screens live
+`StartScreen → ChatbotIntakeScreen → FocusAreasScreen → QuestionnaireFlowScreen (loops per instrument) → ResultsScreen`, with `CrisisScreen` interrupting either the chat or the questionnaire whenever the backend returns `status: "crisis"`.
+- **StartScreen** — welcome screen, greeting pulled from `GET /auth/me`.
+- **ChatbotIntakeScreen** — chat UI (bot/user bubbles, typing indicator) wired to `/chatbot/intake`. Free-text only — no structured quick-reply endpoint exists on the backend, so the UI doesn't fake one.
+- **FocusAreasScreen** — shows the `/classify` result (which instruments will run) before the questionnaire starts.
+- **QuestionnaireFlowScreen** — renders answered Q&A as a chat log with the live question's radio options below, one instrument after another, calling `/complete` once the last one finishes.
+- **CrisisScreen** — dedicated full screen (not an inline banner): red warning card, "Find Help Now" (opens a helpline sheet with tappable `tel:` links — new dependency `url_launcher`), "I'm Safe, Continue." Logs via `/assessment/crisis-log` on open.
+- **ResultsScreen** — overall risk gauge (custom-painted), per-instrument severity breakdown, support banner. No "Download Report" / "Book a Session" buttons — deliberately left out since neither has a backend endpoint yet, rather than shipping non-functional stubs.
+- New dependencies: `crypto` (SHA-256 hashing for crisis-log), `url_launcher` (helpline dialing).
+
+### Bugs found and fixed post-build
+- **`app/rag/engine.py`** — `:paramname::vector` (a named bind parameter immediately followed by Postgres's `::` cast, no separator) silently failed to bind in SQLAlchemy's `text()`, sending a literal `:` to asyncpg and crashing app startup during knowledge-base seeding. Fixed in 3 places (the seed insert, and both the `SELECT`/`ORDER BY` in `semantic_search`) by wrapping the param in parentheses: `(:paramname)::vector`.
+- **`app/rag/engine.py`** — metadata serialization used `str(dict).replace("'", '"')` as a fake JSON encoder, which doesn't handle Python's `True`/`False`/`None`. Broke on `PHQ-9`'s `"safety_critical": True` metadata. Fixed by using real `json.dumps()`.
+- **`android/app/build.gradle.kts`** — Kotlin Android plugin was declared (`apply false`) in `settings.gradle.kts` but never actually applied in the app module, so the `kotlin { compilerOptions { ... } }` block was unresolvable. Fixed by adding `id("org.jetbrains.kotlin.android")` to the `plugins {}` block.
+- **`flutter analyze` cleanup** — fixed a dangling library doc comment, a `catchError` handler with a mismatched return type on `CrisisScreen`'s crisis-log call (replaced with a proper try/catch), and three missing `const` constructors on `StartScreen`.
+
+---
+
 
 ### Docker (`docker-compose.yml`)
 - PostgreSQL 15 container
@@ -284,20 +329,22 @@ flutter run -d windows     # desktop (needs Visual Studio C++ tools)
 - [x] OTP verification endpoint
 - [x] Reset password endpoint
 - [x] Email sending (Brevo transactional API)
-- [ ] User profile endpoints
-- [ ] Mental health screening/assessment endpoints
-- [ ] ML model integration
+- [x] Mental health screening/assessment endpoints (intake chatbot, classify, questionnaire, complete, crisis-log)
+- [ ] User profile endpoints (beyond `GET /auth/me`)
+- [ ] ML model integration (risk classifier, trajectory engine — later sprints)
+- [ ] Basic Dashboard endpoints (Week 3, in progress)
+- [ ] Report generation / session booking endpoints (referenced by the Results screen design, not built yet)
 
 ### Frontend
-- [ ] Forgot Password screen
-- [ ] OTP verification screen
-- [ ] Set New Password screen
-- [ ] Home / Dashboard screen
-- [ ] Mental health assessment screens
+- [x] Forgot Password screen
+- [x] OTP verification screen
+- [x] Set New Password screen
+- [x] Mental health assessment screens (Start, Chatbot Intake, Focus Areas, Questionnaire Flow, Crisis, Results)
+- [ ] Home / Dashboard screen (Week 3)
 - [ ] Profile screen
-- [ ] Navigation/routing system (go_router)
-- [ ] State management (Provider or Riverpod)
-- [ ] Update `UserOut` (Dart model) to parse `username`/`gender` from the signup/`/me` response, once a screen needs to display them
+- [ ] Navigation/routing system (go_router) — currently plain `Navigator.push`/`pushReplacement`
+- [ ] State management (Provider or Riverpod) — currently per-screen `setState`
+- [x] Update `UserOut` (Dart model) to parse `username`/`gender` from the signup/`/me` response
 
 ---
 
@@ -305,8 +352,11 @@ flutter run -d windows     # desktop (needs Visual Studio C++ tools)
 
 1. **Virtualization not enabled** — Docker won't start until BIOS virtualization is turned on. The setting is usually under Advanced → CPU → Intel VT-x or AMD SVM.
 2. **Windows desktop** needs Visual Studio 2022 with "Desktop development with C++" workload. Use Chrome for now.
-3. ~~**Gender field** — exists in the signup UI but is not sent to the backend (no column in DB yet).~~ **Resolved** — `gender` is now a column on `User`, part of `UserCreate`/`UserOut`, and sent from the signup form.
-4. ~~**Full Name / Username** — exist in the original design mockup but are not in the backend model yet.~~ **Resolved** — `username` is now a required column on `User`, unique, validated, and checked for duplicates on signup.
-5. **JWT after login** — token is saved to SharedPreferences but there's no route guard or auto-login yet.
-6. **Frontend `UserOut` model** — doesn't yet parse `username`/`gender` out of the backend response (see Frontend Next Steps above). Not currently causing any bugs, since nothing in the UI reads those fields yet.
-7. **Brevo API key** — each developer needs their own free Brevo account and API key in their local `.env` (never committed) to see real forgot-password emails; without one, the OTP code is just logged to the console, which is enough to test the flow end-to-end.
+3. ~~**Gender field**~~ **Resolved.**
+4. ~~**Full Name / Username**~~ **Resolved.**
+5. **JWT after login** — token is saved to SharedPreferences but there's no route guard or auto-login yet; a killed/restarted app lands back on Login even with a valid saved token.
+6. ~~**Frontend `UserOut` model**~~ **Resolved** — now parses `username`/`gender`, used by the Sprint 2 Start/Results screens for the greeting.
+7. **Brevo API key** — each developer needs their own free Brevo account and API key in their local `.env` (never committed) to see real forgot-password emails; without one, the OTP code is just logged to the console.
+8. **Sprint 2 frontend is untested against a real device/emulator by this assistant** — all 5 phases plus the bugfixes above were written and manually reviewed for correctness, but never run through `flutter run` here (no Flutter SDK in this environment). Confirmed working via your own `flutter run`/`flutter analyze` output during Sprint 2, with the 5 lint issues above fixed.
+9. **No route guard / global navigation** — every Sprint 2 screen uses direct `Navigator.push`, no `go_router` yet. Fine for now, will need revisiting once the Dashboard (Week 3) adds more entry points into the assessment flow.
+10. **"Download Full Report" / "Book a Session"** — appear in the original UI reference images but intentionally not built; no backend endpoint exists for either yet.

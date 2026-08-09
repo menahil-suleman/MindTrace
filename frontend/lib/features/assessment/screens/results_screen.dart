@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../core/theme.dart';
@@ -9,15 +10,11 @@ class ResultsScreen extends StatelessWidget {
 
   const ResultsScreen({super.key, required this.result});
 
-  Color get _riskColor {
-    switch (result.riskLevel) {
-      case 'high':
-        return const Color(0xFF93000A);
-      case 'moderate':
-        return const Color(0xFF7D5A00);
-      default:
-        return const Color(0xFF1A6B3C);
-    }
+  Color _colorFor(String severity) {
+    final s = severity.toLowerCase();
+    if (s.contains('sever') || s.contains('high')) return const Color(0xFFD32F2F);
+    if (s.contains('moderate')) return const Color(0xFFF5A623);
+    return const Color(0xFF34A853);
   }
 
   IconData get _riskIcon {
@@ -31,8 +28,21 @@ class ResultsScreen extends StatelessWidget {
     }
   }
 
+  double _gaugeFraction(String riskLevel) {
+    switch (riskLevel.toLowerCase()) {
+      case 'high':
+        return 0.85;
+      case 'moderate':
+        return 0.5;
+      default:
+        return 0.15;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final riskColor = _colorFor(result.riskLevel);
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -99,7 +109,7 @@ class ResultsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Thank you for sharing. We\'ve prepared your results.',
+              "Thank you for sharing. We've prepared your results.",
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontFamily: 'Manrope',
@@ -109,9 +119,9 @@ class ResultsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 28),
 
-            // ── Framing message ─────────────────────────────────────────────
+            // ── Overall summary card with gauge ─────────────────────────────
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: MindColors.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(16),
@@ -120,7 +130,7 @@ class ResultsScreen extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(_riskIcon, color: _riskColor, size: 20),
+                  Icon(_riskIcon, color: riskColor, size: 20),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -131,6 +141,15 @@ class ResultsScreen extends StatelessWidget {
                         color: MindColors.onSurface,
                         height: 1.5,
                       ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 80,
+                    height: 48,
+                    child: CustomPaint(
+                      painter: _GaugePainter(
+                          fraction: _gaugeFraction(result.riskLevel)),
                     ),
                   ),
                 ],
@@ -152,7 +171,7 @@ class ResultsScreen extends StatelessWidget {
             const SizedBox(height: 12),
             ...result.scores.entries.map((e) => _ScoreCard(
                   instrumentKey: e.key,
-                  data: e.value as Map<String, dynamic>,
+                  data: e.value,
                 )),
             const SizedBox(height: 24),
 
@@ -243,7 +262,7 @@ class ResultsScreen extends StatelessWidget {
 
 class _ScoreCard extends StatelessWidget {
   final String instrumentKey;
-  final Map<String, dynamic> data;
+  final InstrumentResult data;
 
   const _ScoreCard({required this.instrumentKey, required this.data});
 
@@ -256,25 +275,21 @@ class _ScoreCard extends StatelessWidget {
     return names[instrumentKey] ?? instrumentKey.toUpperCase();
   }
 
-  Color get _severityColor {
-    switch (data['severity']) {
-      case 'severe':
-      case 'extremely_severe':
-      case 'moderately_severe':
-        return const Color(0xFF93000A);
-      case 'moderate':
-        return const Color(0xFF7D5A00);
-      default:
-        return const Color(0xFF1A6B3C);
-    }
+  Color _severityColor(String severity) {
+    final s = severity.toLowerCase();
+    if (s.contains('sever') || s.contains('high')) return const Color(0xFFD32F2F);
+    if (s.contains('moderate')) return const Color(0xFFF5A623);
+    return const Color(0xFF34A853);
   }
 
   @override
   Widget build(BuildContext context) {
-    final score = data['score'] as int? ?? 0;
-    final maxScore = data['max_score'] as int? ?? 21;
-    final label = data['label'] as String? ?? '';
-    final note = data['clinical_note'] as String? ?? '';
+    final score = data.score;
+    final maxScore = data.maxScore;
+    final label = data.label;
+    final severity = data.severity;
+    final note = data.clinicalNote;
+    final color = _severityColor(severity);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -300,10 +315,10 @@ class _ScoreCard extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _severityColor.withValues(alpha: 0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
@@ -312,7 +327,7 @@ class _ScoreCard extends StatelessWidget {
                     fontFamily: 'Manrope',
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: _severityColor,
+                    color: color,
                   ),
                 ),
               ),
@@ -324,23 +339,18 @@ class _ScoreCard extends StatelessWidget {
             child: LinearProgressIndicator(
               value: maxScore > 0 ? score / maxScore : 0,
               backgroundColor: MindColors.surfaceContainerLow,
-              color: _severityColor,
+              color: color,
               minHeight: 6,
             ),
           ),
           const SizedBox(height: 6),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '$score / $maxScore',
-                style: const TextStyle(
-                  fontFamily: 'Manrope',
-                  fontSize: 12,
-                  color: MindColors.onSurfaceVariant,
-                ),
-              ),
-            ],
+          Text(
+            '$score / $maxScore',
+            style: const TextStyle(
+              fontFamily: 'Manrope',
+              fontSize: 12,
+              color: MindColors.onSurfaceVariant,
+            ),
           ),
           if (note.isNotEmpty) ...[
             const SizedBox(height: 8),
@@ -358,4 +368,58 @@ class _ScoreCard extends StatelessWidget {
       ),
     );
   }
+}
+
+// ── Gauge painter ─────────────────────────────────────────────────────────────
+
+class _GaugePainter extends CustomPainter {
+  final double fraction;
+  const _GaugePainter({required this.fraction});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height);
+    final radius = math.min(size.width / 2, size.height) - 4;
+    const startAngle = math.pi;
+    const sweep = math.pi;
+
+    final bandPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 8
+      ..strokeCap = StrokeCap.round;
+
+    final colors = [
+      const Color(0xFF34A853),
+      const Color(0xFFF5A623),
+      const Color(0xFFD32F2F),
+    ];
+    final segment = sweep / colors.length;
+    for (var i = 0; i < colors.length; i++) {
+      bandPaint.color = colors[i];
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle + segment * i,
+        segment,
+        false,
+        bandPaint,
+      );
+    }
+
+    final needleAngle =
+        startAngle + sweep * fraction.clamp(0.0, 1.0);
+    final needleEnd = Offset(
+      center.dx + radius * 0.85 * math.cos(needleAngle),
+      center.dy + radius * 0.85 * math.sin(needleAngle),
+    );
+    final needlePaint = Paint()
+      ..color = MindColors.onSurface
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(center, needleEnd, needlePaint);
+    canvas.drawCircle(center, 4, Paint()..color = MindColors.onSurface);
+  }
+
+  @override
+  bool shouldRepaint(covariant _GaugePainter old) =>
+      old.fraction != fraction;
 }

@@ -34,7 +34,7 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
   final Map<String, Map<String, dynamic>> _allScores = {};
 
   // Current question being shown
-  QuestionResult? _currentQuestion;
+  QuestionnaireStepResult? _currentQuestion;
 
   bool _isLoading = true;
   String? _errorMessage;
@@ -269,12 +269,11 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
   double get _overallProgress {
     final q = _currentQuestion;
     if (q == null) return 0;
-    // Questions completed across all instruments so far
+    final total = widget.questionnaires.length *
+        (q.totalQuestions > 0 ? q.totalQuestions : 7);
     final completedBefore = _allScores.length *
         (q.totalQuestions > 0 ? q.totalQuestions : 7);
     final completedNow = _currentAnswers.length;
-    final total = widget.questionnaires.length *
-        (q.totalQuestions > 0 ? q.totalQuestions : 7);
     return total > 0 ? (completedBefore + completedNow) / total : 0;
   }
 
@@ -359,6 +358,8 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
   Widget _buildQuestion() {
     final q = _currentQuestion;
     if (q == null) return const SizedBox();
+    final question = q.question;
+    if (question == null) return const SizedBox();
 
     return Column(
       children: [
@@ -398,7 +399,7 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
 
                 // Question text
                 Text(
-                  q.questionText ?? '',
+                  question.text,
                   style: const TextStyle(
                     fontFamily: 'Manrope',
                     fontSize: 20,
@@ -410,7 +411,7 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
                 const SizedBox(height: 32),
 
                 // Answer options
-                ...q.options.map((opt) => _OptionTile(
+                ...question.options.map((opt) => _OptionTile(
                       label: opt.label,
                       value: opt.value,
                       selected: _selectedValue == opt.value,
@@ -420,7 +421,7 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
                 const SizedBox(height: 16),
 
                 // Safety note if critical question
-                if (q.safetyCritical)
+                if (question.safetyCritical)
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 10),

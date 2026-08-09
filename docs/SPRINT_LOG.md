@@ -3,8 +3,8 @@
 | Week | Feature | Status | Blockers / Notes | Carried to Buffer? |
 |------|---------|--------|-------------------|---------------------|
 | 1 | Flutter Setup + Scaffolding + Auth | Completed | | Yes |
-| 2 | Chatbot 1 + Core Questionnaires | In progress | | No |
-| 3 | Crisis Safety Check + Basic Dashboard | Not started | | No |
+| 2 | Chatbot 1 + Core Questionnaires | Completed | Backend: intake chatbot (RAG), classify, questionnaire, complete, crisis-log. Frontend: Start → Chatbot Intake → Focus Areas → Questionnaire Flow → Crisis → Results screens, all wired to the real endpoints. | No |
+| 3 | Crisis Safety Check + Basic Dashboard | In progress | Crisis Safety Check shipped early as part of Week 2 (dedicated Crisis screen + crisis-log audit trail, triggered from both chatbot and questionnaire). Basic Dashboard still not started. | No |
 | 4 | Daily Check-in + Push Notifications | Not started | | No |
 | 5 | ML Risk Classifier | Not started | | No |
 | 6 | Trajectory Engine | Not started | | No |
