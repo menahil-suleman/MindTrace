@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme.dart';
+import '../../assessment/screens/start_screen.dart';
 import '../../auth/screens/auth_screen.dart';
 import '../../auth/services/auth_service.dart';
-import '../../chat/screens/intake_chat_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -115,7 +115,7 @@ class DashboardScreen extends StatelessWidget {
                           onPressed: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (_) => const IntakeChatScreen(),
+                                builder: (_) => const StartScreen(),
                               ),
                             );
                           },
